@@ -7,21 +7,61 @@ void main() {
   runApp(const MyMusicPlayer());
 }
 
-class MyMusicPlayer extends StatelessWidget {
+class MyMusicPlayer extends StatefulWidget {
   const MyMusicPlayer({super.key});
+
+  @override
+  State<MyMusicPlayer> createState() => _MyMusicPlayerState();
+}
+
+class _MyMusicPlayerState extends State<MyMusicPlayer> {
+  // T2-1: 用來控制主題模式的變數
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.light
+          ? ThemeMode.dark
+          : ThemeMode.light;
+    });
+    Log.i("主題切換為: ${_themeMode.name}");
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blueAccent),
-      home: const MusicPlayerHome(),
+      // 定義淺色主題
+      theme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blueAccent,
+        brightness: Brightness.light,
+      ),
+      // 定義深色主題
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blueAccent,
+        brightness: Brightness.dark,
+      ),
+      // 根據變數決定目前主題
+      themeMode: _themeMode,
+      home: MusicPlayerHome(
+        onThemeToggle: _toggleTheme,
+        currentThemeMode: _themeMode,
+      ),
     );
   }
 }
 
 class MusicPlayerHome extends StatefulWidget {
-  const MusicPlayerHome({super.key});
+  final VoidCallback onThemeToggle; // 接收切換主題的函式
+  final ThemeMode currentThemeMode;
+
+  const MusicPlayerHome({
+    super.key,
+    required this.onThemeToggle,
+    required this.currentThemeMode,
+  });
 
   @override
   State<MusicPlayerHome> createState() => _MusicPlayerHomeState();
@@ -99,12 +139,17 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = widget.currentThemeMode == ThemeMode.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('POCO F8 Ultra 播放器'),
-        backgroundColor: Colors.blueAccent,
-        foregroundColor: Colors.white,
         actions: [
+          // T2-1: 切換主題按鈕
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            onPressed: widget.onThemeToggle,
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _scanMusic),
         ],
       ),
@@ -113,14 +158,17 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
           // 路徑顯示區
           Container(
             padding: const EdgeInsets.all(12),
-            color: Colors.grey[200],
-            child: const Row(
+            color: isDark ? Colors.grey[900] : Colors.grey[200],
+            child: Row(
               children: [
                 Icon(Icons.folder_open, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  '路徑: /storage/emulated/0/Music',
-                  style: TextStyle(fontSize: 12),
+                  '路徑: /storage/emulated/0/Download',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
                 ),
               ],
             ),
@@ -134,7 +182,10 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                     itemCount: _musicFiles.length,
                     itemBuilder: (context, index) {
                       return ListTile(
-                        leading: const Icon(Icons.music_note),
+                        leading: Icon(
+                          Icons.music_note,
+                          color: isDark ? Colors.blue[200] : Colors.blueAccent,
+                        ),
                         title: Text(_musicFiles[index]),
                         selected: _currentSong == _musicFiles[index],
                         onTap: () {
