@@ -278,6 +278,12 @@ class _PlayerSectionState extends State<PlayerSection> {
     widget.player.onPositionChanged.listen((newPosition) {
       if (mounted) setState(() => _position = newPosition);
     });
+    // 當歌曲完整播放結束時觸發
+    widget.player.onPlayerComplete.listen((event) {
+      Log.i("歌曲播放完畢！");
+      // 這裡可以呼叫「下一首」的邏輯
+      // _playNextSong();
+    });
   }
 
   // 將 Duration 轉為 00:00 格式的輔助函式
@@ -328,15 +334,13 @@ class _PlayerSectionState extends State<PlayerSection> {
           // --- 進度條區塊 ---
           Slider(
             min: 0,
-            max: _duration.inMilliseconds.toDouble() > 0
-                ? _duration.inMilliseconds.toDouble()
-                : 1.0, // 避免 max 為 0 導致報錯
+            max: _duration.inMilliseconds.toDouble(),
+            // 使用 clamp 確保數值永遠在 0.0 到總長度之間
             value: _position.inMilliseconds.toDouble().clamp(
               0.0,
               _duration.inMilliseconds.toDouble(),
             ),
             onChanged: (value) async {
-              // 手動拉動進度條
               final position = Duration(milliseconds: value.toInt());
               await widget.player.seek(position);
             },
@@ -348,7 +352,11 @@ class _PlayerSectionState extends State<PlayerSection> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_formatDuration(_position)), // 當前時間
+                Text(
+                  _formatDuration(
+                    _position > _duration ? _duration : _position,
+                  ),
+                ), // 當前時間
                 Text(_formatDuration(_duration)), // 總時間
               ],
             ),
