@@ -154,7 +154,7 @@ class _MusicPlayerHomeState extends State<MusicPlayerHome> {
                   border: InputBorder.none,
                 ),
               )
-            : const Text('POCO F8 Ultra Player'),
+            : const Text('Sixer MP3Player'),
         actions: [
           // 搜尋按鈕
           IconButton(
@@ -256,6 +256,8 @@ class PlayerSection extends StatefulWidget {
 
 class _PlayerSectionState extends State<PlayerSection> {
   PlayerState _playerState = PlayerState.stopped;
+  Duration _duration = Duration.zero; // 歌曲總長
+  Duration _position = Duration.zero; // 當前播放位置
 
   @override
   void initState() {
@@ -266,13 +268,33 @@ class _PlayerSectionState extends State<PlayerSection> {
         setState(() => _playerState = state);
       }
     });
+
+    // 2. 監聽歌曲總長度
+    widget.player.onDurationChanged.listen((newDuration) {
+      if (mounted) setState(() => _duration = newDuration);
+    });
+
+    // 3. 監聽當前播放位置
+    widget.player.onPositionChanged.listen((newPosition) {
+      if (mounted) setState(() => _position = newPosition);
+    });
+  }
+
+  // 將 Duration 轉為 00:00 格式的輔助函式
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "$twoDigitMinutes:$twoDigitSeconds";
   }
 
   // 處理播放/暫停按鈕點擊
   Future<void> _togglePlayPause() async {
     if (_playerState == PlayerState.playing) {
       await widget.player.pause();
-    } else if (_playerState == PlayerState.paused || _playerState == PlayerState.completed || _playerState == PlayerState.stopped) {
+    } else if (_playerState == PlayerState.paused ||
+        _playerState == PlayerState.completed ||
+        _playerState == PlayerState.stopped) {
       // 如果有選中歌曲且目前是暫停狀態，就繼續播放
       if (widget.currentSongName != null) {
         await widget.player.resume();
@@ -303,18 +325,52 @@ class _PlayerSectionState extends State<PlayerSection> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const Slider(value: 0, onChanged: null), // 下一步我們要來處理這個進度條
+          // --- 進度條區塊 ---
+          Slider(
+            min: 0,
+            max: _duration.inMilliseconds.toDouble() > 0
+                ? _duration.inMilliseconds.toDouble()
+                : 1.0, // 避免 max 為 0 導致報錯
+            value: _position.inMilliseconds.toDouble().clamp(
+              0.0,
+              _duration.inMilliseconds.toDouble(),
+            ),
+            onChanged: (value) async {
+              // 手動拉動進度條
+              final position = Duration(milliseconds: value.toInt());
+              await widget.player.seek(position);
+            },
+          ),
+
+          // 顯示時間文字
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_formatDuration(_position)), // 當前時間
+                Text(_formatDuration(_duration)), // 總時間
+              ],
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              IconButton(icon: const Icon(Icons.skip_previous), onPressed: () {}),
+              IconButton(
+                icon: const Icon(Icons.skip_previous),
+                onPressed: () {},
+              ),
               IconButton(
                 iconSize: 48,
                 // 根據狀態切換圖示
-                icon: Icon(_playerState == PlayerState.playing 
-                    ? Icons.pause_circle_filled 
-                    : Icons.play_circle_fill),
-                onPressed: widget.currentSongName == null ? null : _togglePlayPause,
+                icon: Icon(
+                  _playerState == PlayerState.playing
+                      ? Icons.pause_circle_filled
+                      : Icons.play_circle_fill,
+                ),
+                onPressed: widget.currentSongName == null
+                    ? null
+                    : _togglePlayPause,
               ),
               IconButton(icon: const Icon(Icons.skip_next), onPressed: () {}),
             ],
